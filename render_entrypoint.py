@@ -178,6 +178,27 @@ def background_sync_worker(interval_seconds=30):
         except Exception as e:
             print(f"[!] Background sync loop warning: {e}")
 
+def patch_nanobot_head_health():
+    """Support HTTP HEAD requests and /health endpoints for UptimeRobot & keep-alive monitors."""
+    try:
+        import nanobot.channels.websocket.runtime as ws_runtime
+        file_path = ws_runtime.__file__
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        target = "async def handle_binary(request: web.BaseRequest) -> web.StreamResponse:\n            try:\n                with self.bus.admission.activity():"
+        replacement = """async def handle_binary(request: web.BaseRequest) -> web.StreamResponse:
+            try:
+                if request.method == "HEAD" or request.path in ["/health", "/ping"]:
+                    return web.Response(status=200, text="OK")
+                with self.bus.admission.activity():"""
+        if target in content and 'request.method == "HEAD"' not in content:
+            content = content.replace(target, replacement, 1)
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            print("✓ Patched Nanobot WebSocket listener to support HTTP HEAD & /health for UptimeRobot.")
+    except Exception as e:
+        print(f"[!] Warning patching HEAD health support: {e}")
+
 def main():
     print("=" * 60)
     print(" 🐈 Initializing Official HKUDS Nanobot on Render Cloud...")
@@ -194,6 +215,9 @@ def main():
 
     # 2.1 Auto-reinstall any apps if container was reset
     restore_installed_apps()
+
+    # 2.2 Patch Nanobot to support HTTP HEAD and /health for UptimeRobot
+    patch_nanobot_head_health()
 
     # 3. Read Render assigned PORT & secrets
     port = int(os.getenv("PORT", "10000"))
