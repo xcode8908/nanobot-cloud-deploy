@@ -63,6 +63,25 @@ def setup_private_memory():
         except Exception as e:
             print(f"[!] Warning restoring private memory: {e}")
 
+def restore_installed_apps():
+    """Auto-reinstall any CLI apps that were installed previously if the container reset."""
+    try:
+        import shutil
+        from nanobot.apps.cli import CliAppManager
+        manager = CliAppManager(workspace=WORKSPACE)
+        installed = manager._load_installed()
+        for name, data in installed.items():
+            entry_point = str(data.get("entry_point") or "")
+            if entry_point and not shutil.which(entry_point):
+                print(f"📦 Container reset detected! Auto-reinstalling app: {name}...")
+                try:
+                    manager.install(name)
+                    print(f"✓ Successfully restored app: {name}")
+                except Exception as err:
+                    print(f"[!] Note on restoring app {name}: {err}")
+    except Exception as e:
+        print(f"[!] App auto-restore check notice: {e}")
+
 def push_memory(reason="Auto-save"):
     """Commit & push all modified memory/workspace/sessions files to the private repo."""
     if not GH_TOKEN:
@@ -125,6 +144,9 @@ def main():
 
     # 2. Run onboard --refresh to populate missing templates
     subprocess.run(["nanobot", "onboard", "--refresh"], check=False)
+
+    # 2.1 Auto-reinstall any apps if container was reset
+    restore_installed_apps()
 
     # 3. Read Render assigned PORT & secrets
     port = int(os.getenv("PORT", "10000"))
