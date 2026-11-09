@@ -1,3 +1,6 @@
 nanobot-ai==0.4.1
 uvicorn
+python-telegram-bot[socks,webhooks]>=22.6,<23.0
+socksio>=1.0.0,<2.0.0
+discord.py>=2.5.2,<3.0.0
 

@@ -194,6 +194,11 @@ def main():
             gw["host"] = "127.0.0.1"
             gw["port"] = 18790
 
+            # Allow installing optional channel features & packages from remote WebUI
+            tools = config.setdefault("tools", {})
+            tools["webuiAllowRemotePackageInstall"] = True
+            tools["webui_allow_remote_package_install"] = True
+
             with open(CONFIG_PATH, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=2)
             print(f"✓ Configured WebUI & Gateway to listen on 0.0.0.0:{port} (Secret: {webui_secret})")
