@@ -244,6 +244,15 @@ def main():
                 config.setdefault("providers", {}).setdefault("openrouter", {})["apiKey"] = openrouter_key
                 print("✓ Configured OpenRouter API Key")
 
+            # Set Custom / TokenHarbor Provider if provided
+            custom_key = os.getenv("CUSTOM_API_KEY", "").strip() or os.getenv("TOKENHARBOR_API_KEY", "").strip()
+            custom_base = os.getenv("CUSTOM_API_BASE", "").strip() or "https://tokenharbor.ai/v1"
+            if custom_key:
+                cust = config.setdefault("providers", {}).setdefault("custom", {})
+                cust["apiKey"] = custom_key
+                cust["apiBase"] = custom_base
+                print(f"✓ Configured Custom Provider ({custom_base})")
+
             agent_defaults = config.setdefault("agents", {}).setdefault("defaults", {})
             if default_provider and default_model:
                 agent_defaults["provider"] = default_provider
