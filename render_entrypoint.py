@@ -33,8 +33,9 @@ def main():
             if gemini_key:
                 config.setdefault("providers", {}).setdefault("gemini", {})["apiKey"] = gemini_key
                 config.setdefault("agents", {}).setdefault("defaults", {})["provider"] = "gemini"
-                config.setdefault("agents", {}).setdefault("defaults", {})["model"] = "gemini-3.5-flash"
-                print("✓ Configured Gemini API Key & Model (gemini-3.5-flash)")
+                config.setdefault("agents", {}).setdefault("defaults", {})["model"] = "gemini-3-flash-preview"
+                config.setdefault("agents", {}).setdefault("defaults", {})["fallbackModels"] = ["gemini-3.1-flash-lite-preview"]
+                print("✓ Configured Gemini API Key & Model (gemini-3-flash-preview)")
 
             # Set Telegram Bot Channel if provided
             tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
