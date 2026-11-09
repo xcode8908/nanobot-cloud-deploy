@@ -233,10 +233,15 @@ def main():
             gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
             if gemini_key:
                 config.setdefault("providers", {}).setdefault("gemini", {})["apiKey"] = gemini_key
-                config.setdefault("agents", {}).setdefault("defaults", {})["provider"] = "gemini"
-                config.setdefault("agents", {}).setdefault("defaults", {})["model"] = "gemini-3-flash-preview"
-                config.setdefault("agents", {}).setdefault("defaults", {})["fallbackModels"] = []
-                print("✓ Configured Gemini API Key & Model (gemini-3-flash-preview)")
+                agent_defaults = config.setdefault("agents", {}).setdefault("defaults", {})
+                # Only set Gemini as default if user hasn't selected another custom model
+                if not agent_defaults.get("model"):
+                    agent_defaults["provider"] = "gemini"
+                    agent_defaults["model"] = "gemini-3-flash-preview"
+                    agent_defaults["fallbackModels"] = []
+                    print("✓ Configured Gemini API Key & Default Model (gemini-3-flash-preview)")
+                else:
+                    print(f"✓ Preserved User Custom Model: {agent_defaults.get('provider')} / {agent_defaults.get('model')}")
 
             # Set Telegram Bot Channel if provided
             tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
