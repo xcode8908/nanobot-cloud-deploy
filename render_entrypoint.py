@@ -229,19 +229,36 @@ def main():
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 config = json.load(f)
 
-            # Set Gemini Provider with active gemini-3-flash-preview model
+            # Set Gemini Provider with active key
             gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
             if gemini_key:
                 config.setdefault("providers", {}).setdefault("gemini", {})["apiKey"] = gemini_key
-                agent_defaults = config.setdefault("agents", {}).setdefault("defaults", {})
-                # Only set Gemini as default if user hasn't selected another custom model
-                if not agent_defaults.get("model"):
-                    agent_defaults["provider"] = "gemini"
-                    agent_defaults["model"] = "gemini-3-flash-preview"
-                    agent_defaults["fallbackModels"] = []
-                    print("✓ Configured Gemini API Key & Default Model (gemini-3-flash-preview)")
-                else:
-                    print(f"✓ Preserved User Custom Model: {agent_defaults.get('provider')} / {agent_defaults.get('model')}")
+                print("✓ Configured Gemini API Key")
+
+            # Set OpenRouter Provider if provided
+            openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+            default_model = os.getenv("DEFAULT_MODEL", "").strip()
+            default_provider = os.getenv("DEFAULT_PROVIDER", "").strip()
+
+            if openrouter_key:
+                config.setdefault("providers", {}).setdefault("openrouter", {})["apiKey"] = openrouter_key
+                print("✓ Configured OpenRouter API Key")
+
+            agent_defaults = config.setdefault("agents", {}).setdefault("defaults", {})
+            if default_provider and default_model:
+                agent_defaults["provider"] = default_provider
+                agent_defaults["model"] = default_model
+                print(f"✓ Configured Default Model from ENV: {default_provider} / {default_model}")
+            elif openrouter_key and (not agent_defaults.get("model") or agent_defaults.get("provider") == "gemini"):
+                agent_defaults["provider"] = "openrouter"
+                agent_defaults["model"] = "nvidia/nemotron-3-ultra-550b-a55b:free"
+                print("✓ Activated High-Power Frontier Model (nvidia/nemotron-3-ultra-550b-a55b:free)")
+            elif gemini_key and not agent_defaults.get("model"):
+                agent_defaults["provider"] = "gemini"
+                agent_defaults["model"] = "gemini-3-flash-preview"
+                print("✓ Configured Gemini API Key & Default Model (gemini-3-flash-preview)")
+            else:
+                print(f"✓ Preserved User Custom Model: {agent_defaults.get('provider')} / {agent_defaults.get('model')}")
 
             # Set Telegram Bot Channel if provided
             tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
