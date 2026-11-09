@@ -103,7 +103,7 @@ def push_memory(reason="Auto-save"):
     except Exception as e:
         print(f"[!] Auto-save error: {e}")
 
-def background_sync_worker(interval_seconds=180):
+def background_sync_worker(interval_seconds=30):
     """Background daemon: periodically syncs memory without slowing down chats."""
     if not GH_TOKEN:
         return
@@ -183,7 +183,7 @@ def main():
 
     # 6. Start non-blocking background sync thread (0ms latency for user)
     if GH_TOKEN:
-        sync_thread = threading.Thread(target=background_sync_worker, args=(180,), daemon=True)
+        sync_thread = threading.Thread(target=background_sync_worker, args=(30,), daemon=True)
         sync_thread.start()
 
     # 7. Graceful shutdown handler
