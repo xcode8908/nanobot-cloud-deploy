@@ -34,7 +34,7 @@ def main():
                 config.setdefault("providers", {}).setdefault("gemini", {})["apiKey"] = gemini_key
                 config.setdefault("agents", {}).setdefault("defaults", {})["provider"] = "gemini"
                 config.setdefault("agents", {}).setdefault("defaults", {})["model"] = "gemini-3-flash-preview"
-                config.setdefault("agents", {}).setdefault("defaults", {})["fallbackModels"] = ["gemini-3.1-flash-lite-preview"]
+                config.setdefault("agents", {}).setdefault("defaults", {})["fallbackModels"] = []
                 print("✓ Configured Gemini API Key & Model (gemini-3-flash-preview)")
 
             # Set Telegram Bot Channel if provided
