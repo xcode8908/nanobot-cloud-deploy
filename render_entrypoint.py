@@ -6,7 +6,7 @@ from pathlib import Path
 
 def main():
     print("=" * 60)
-    print(" 🐈 Initializing Official HKUDS Nanobot for Render Deployment...")
+    print(" 🐈 Initializing Official HKUDS Nanobot on Render Cloud...")
     print("=" * 60)
 
     home_dir = Path.home() / ".nanobot"
@@ -16,48 +16,64 @@ def main():
     # 1. Onboard / Refresh if config doesn't exist
     subprocess.run(["nanobot", "onboard", "--refresh"], check=False)
 
-    # 2. Inject Environment Variables into config.json
+    # 2. Port for Render
+    port = int(os.getenv("PORT", "10000"))
+
+    # 3. Inject Environment Variables into config.json
     if config_path.exists():
         try:
             with open(config_path, "r", encoding="utf-8") as f:
                 config = json.load(f)
 
-            # Set Gemini
+            # Set Gemini Provider
             gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
             if gemini_key:
                 config.setdefault("providers", {}).setdefault("gemini", {})["apiKey"] = gemini_key
                 config.setdefault("agents", {}).setdefault("defaults", {})["provider"] = "gemini"
                 config.setdefault("agents", {}).setdefault("defaults", {})["model"] = "gemini-3.5-flash"
-                print("✓ Configured Gemini API Key and Model (gemini-3.5-flash)")
+                print("✓ Configured Gemini API Key & Model (gemini-3.5-flash)")
 
-            # Set Telegram if provided
+            # Set Telegram Bot Channel if provided
             tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
             if tg_token:
-                config.setdefault("channels", {}).setdefault("telegram", {})["enabled"] = True
-                config.setdefault("channels", {}).setdefault("telegram", {})["token"] = tg_token
-                config.setdefault("channels", {}).setdefault("telegram", {})["mode"] = "polling"
-                print("✓ Enabled Telegram Channel with BOT_TOKEN")
+                tg = config.setdefault("channels", {}).setdefault("telegram", {})
+                tg["enabled"] = True
+                tg["token"] = tg_token
+                tg["mode"] = "polling"
+                tg["allowFrom"] = ["*"]
+                print("✓ Enabled Telegram Channel (polling mode)")
 
-            # Allow public host binding for Render
-            config.setdefault("gateway", {})["host"] = "0.0.0.0"
+            # Configure WebUI & WebSocket Server to bind to Render public PORT
+            ws = config.setdefault("channels", {}).setdefault("websocket", {})
+            ws["enabled"] = True
+            ws["host"] = "0.0.0.0"
+            ws["port"] = port
+            ws["allowFrom"] = ["*"]
+            
+            # Optional WebUI Token
+            webui_secret = os.getenv("WEBUI_SECRET", "").strip()
+            if webui_secret:
+                ws["tokenIssueSecret"] = webui_secret
+
+            # Internal Gateway Health Port on localhost (avoids conflicting with Render PORT)
+            gw = config.setdefault("gateway", {})
+            gw["host"] = "127.0.0.1"
+            gw["port"] = 18790
 
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=2)
-            print("✓ Saved config to ~/.nanobot/config.json")
+            print(f"✓ Configured WebUI & Gateway to listen on 0.0.0.0:{port}")
         except Exception as e:
             print(f"[!] Warning updating config: {e}")
 
-    # 3. Port for Render
-    port = os.getenv("PORT", "10000")
-    print(f"✓ Starting Nanobot WebUI & Gateway on port {port}...")
-
-    # Execute WebUI on Render's assigned port
+    print(f"✓ Starting Nanobot Gateway & WebUI in foreground on port {port}...")
     sys.stdout.flush()
+
+    # Launch Nanobot Gateway in foreground
     subprocess.run([
-        "nanobot", "webui",
-        "--port", str(port),
-        "--yes",
-        "--no-open"
+        "nanobot", "gateway",
+        "--foreground",
+        "--port", "18790"
     ])
 
 if __name__ == "__main__":
