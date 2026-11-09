@@ -36,26 +36,39 @@ def setup_private_memory():
             if res.returncode == 0:
                 subprocess.run(["git", "checkout", "-f", "-B", "main", "origin/main"], cwd=WORKSPACE, check=True, capture_output=True)
                 print("✓ Successfully restored private memory & soul from GitHub!")
+                # Restore SQLite sessions if backed up
+                sessions_backup = WORKSPACE / "sessions_backup"
+                if sessions_backup.exists():
+                    import shutil
+                    shutil.copytree(sessions_backup, HOME / "sessions", dirs_exist_ok=True)
+                    print("✓ Restored previous SQLite chat sessions from GitHub!")
             else:
                 print("✓ Initialized new memory branch.")
         except Exception as e:
             print(f"[!] Warning restoring private memory: {e}")
 
 def push_memory(reason="Auto-save"):
-    """Commit & push all modified memory/workspace files to the private repo."""
+    """Commit & push all modified memory/workspace/sessions files to the private repo."""
     if not GH_TOKEN:
         return
     git_dir = WORKSPACE / ".git"
     if not git_dir.exists():
         return
     try:
+        # Copy active SQLite chat sessions into workspace backup before commit
+        sessions_src = HOME / "sessions"
+        sessions_dst = WORKSPACE / "sessions_backup"
+        if sessions_src.exists():
+            import shutil
+            shutil.copytree(sessions_src, sessions_dst, dirs_exist_ok=True)
+
         status = subprocess.run(["git", "status", "--porcelain"], cwd=WORKSPACE, capture_output=True, text=True)
         if status.stdout.strip():
             subprocess.run(["git", "add", "-A"], cwd=WORKSPACE, check=True, capture_output=True)
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
             subprocess.run(["git", "commit", "-m", f"{reason} [{timestamp}]"], cwd=WORKSPACE, check=True, capture_output=True)
             subprocess.run(["git", "push", "origin", "main"], cwd=WORKSPACE, check=True, capture_output=True)
-            print(f"✓ [{timestamp}] Private memory auto-saved to GitHub (0ms user lag).")
+            print(f"✓ [{timestamp}] Complete workspace & chat sessions auto-saved to GitHub (0ms user lag).")
     except Exception as e:
         print(f"[!] Auto-save error: {e}")
 
