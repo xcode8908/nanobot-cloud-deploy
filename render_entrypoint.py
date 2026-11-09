@@ -36,12 +36,28 @@ def setup_private_memory():
             if res.returncode == 0:
                 subprocess.run(["git", "checkout", "-f", "-B", "main", "origin/main"], cwd=WORKSPACE, check=True, capture_output=True)
                 print("✓ Successfully restored private memory & soul from GitHub!")
-                # Restore SQLite sessions if backed up
+                import shutil
+                # 1. Restore config_backup.json if previously saved (contains custom channels, WhatsApp, custom APIs)
+                cfg_backup = WORKSPACE / "config_backup.json"
+                if cfg_backup.exists():
+                    shutil.copy2(cfg_backup, CONFIG_PATH)
+                    print("✓ Restored custom channels & API configurations from GitHub!")
+                # 2. Restore SQLite sessions if backed up
                 sessions_backup = WORKSPACE / "sessions_backup"
                 if sessions_backup.exists():
-                    import shutil
                     shutil.copytree(sessions_backup, HOME / "sessions", dirs_exist_ok=True)
                     print("✓ Restored previous SQLite chat sessions from GitHub!")
+                # 3. Restore custom skills if backed up
+                skills_backup = WORKSPACE / "skills_backup"
+                if skills_backup.exists():
+                    shutil.copytree(skills_backup, HOME / "skills", dirs_exist_ok=True)
+                    print("✓ Restored custom skills from GitHub!")
+                # 4. Restore WhatsApp / channel auth if backed up
+                for auth_dir in ["whatsapp", "auth", "channels"]:
+                    src = WORKSPACE / f"{auth_dir}_backup"
+                    if src.exists():
+                        shutil.copytree(src, HOME / auth_dir, dirs_exist_ok=True)
+                        print(f"✓ Restored {auth_dir} session/credentials from GitHub!")
             else:
                 print("✓ Initialized new memory branch.")
         except Exception as e:
@@ -55,12 +71,27 @@ def push_memory(reason="Auto-save"):
     if not git_dir.exists():
         return
     try:
-        # Copy active SQLite chat sessions into workspace backup before commit
+        import shutil
+        # 1. Backup full config.json (preserves any custom channels, WhatsApp, custom APIs, model presets)
+        if CONFIG_PATH.exists():
+            shutil.copy2(CONFIG_PATH, WORKSPACE / "config_backup.json")
+
+        # 2. Backup active SQLite chat sessions into workspace backup before commit
         sessions_src = HOME / "sessions"
         sessions_dst = WORKSPACE / "sessions_backup"
         if sessions_src.exists():
-            import shutil
             shutil.copytree(sessions_src, sessions_dst, dirs_exist_ok=True)
+
+        # 3. Backup custom skills if installed
+        skills_src = HOME / "skills"
+        if skills_src.exists():
+            shutil.copytree(skills_src, WORKSPACE / "skills_backup", dirs_exist_ok=True)
+
+        # 4. Backup WhatsApp / channel auth credentials if created
+        for auth_dir in ["whatsapp", "auth", "channels"]:
+            src = HOME / auth_dir
+            if src.exists():
+                shutil.copytree(src, WORKSPACE / f"{auth_dir}_backup", dirs_exist_ok=True)
 
         status = subprocess.run(["git", "status", "--porcelain"], cwd=WORKSPACE, capture_output=True, text=True)
         if status.stdout.strip():
