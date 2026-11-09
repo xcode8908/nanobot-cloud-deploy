@@ -52,8 +52,8 @@ def setup_private_memory():
                 if skills_backup.exists():
                     shutil.copytree(skills_backup, HOME / "skills", dirs_exist_ok=True)
                     print("✓ Restored custom skills from GitHub!")
-                # 4. Restore CLI Apps, WhatsApp / channel auth if backed up
-                for auth_dir in ["cli-apps", "whatsapp", "auth", "channels"]:
+                # 4. Restore Cron automations, CLI Apps, WhatsApp / channel auth if backed up
+                for auth_dir in ["cron", "cli-apps", "whatsapp", "auth", "channels"]:
                     src = WORKSPACE / f"{auth_dir}_backup"
                     if src.exists():
                         shutil.copytree(src, HOME / auth_dir, dirs_exist_ok=True)
@@ -150,8 +150,8 @@ def push_memory(reason="Auto-save"):
         if skills_src.exists():
             shutil.copytree(skills_src, WORKSPACE / "skills_backup", dirs_exist_ok=True)
 
-        # 4. Backup CLI Apps, WhatsApp / channel auth credentials if created
-        for auth_dir in ["cli-apps", "whatsapp", "auth", "channels"]:
+        # 4. Backup Cron automations, CLI Apps, WhatsApp / channel auth credentials if created
+        for auth_dir in ["cron", "cli-apps", "whatsapp", "auth", "channels"]:
             src = HOME / auth_dir
             if src.exists():
                 shutil.copytree(src, WORKSPACE / f"{auth_dir}_backup", dirs_exist_ok=True)
