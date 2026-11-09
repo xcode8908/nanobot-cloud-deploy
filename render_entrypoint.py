@@ -258,7 +258,9 @@ def main():
                 agent_defaults["provider"] = default_provider
                 agent_defaults["model"] = default_model
                 print(f"✓ Configured Default Model from ENV: {default_provider} / {default_model}")
-            elif openrouter_key and (not agent_defaults.get("model") or agent_defaults.get("provider") == "gemini"):
+            elif agent_defaults.get("model_preset") or agent_defaults.get("modelPreset"):
+                print(f"✓ Preserved Active Preset & Fallback Chain: {agent_defaults.get('model_preset') or agent_defaults.get('modelPreset')}")
+            elif openrouter_key:
                 agent_defaults["provider"] = "openrouter"
                 agent_defaults["model"] = "nvidia/nemotron-3-ultra-550b-a55b:free"
                 print("✓ Activated High-Power Frontier Model (nvidia/nemotron-3-ultra-550b-a55b:free)")
