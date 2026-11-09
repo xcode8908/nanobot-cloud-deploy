@@ -19,7 +19,10 @@ def main():
     # 2. Port for Render
     port = int(os.getenv("PORT", "10000"))
 
-    # 3. Inject Environment Variables into config.json
+    # 3. Secret for WebUI authentication
+    webui_secret = os.getenv("WEBUI_SECRET", "").strip() or "nanobot2026"
+
+    # 4. Inject Environment Variables into config.json
     if config_path.exists():
         try:
             with open(config_path, "r", encoding="utf-8") as f:
@@ -49,20 +52,20 @@ def main():
             ws["host"] = "0.0.0.0"
             ws["port"] = port
             ws["allowFrom"] = ["*"]
-            
-            # Optional WebUI Token
-            webui_secret = os.getenv("WEBUI_SECRET", "").strip()
-            if webui_secret:
-                ws["tokenIssueSecret"] = webui_secret
+            ws["allow_from"] = ["*"]
+            ws["tokenIssueSecret"] = webui_secret
+            ws["token_issue_secret"] = webui_secret
+            ws["websocketRequiresToken"] = True
+            ws["websocket_requires_token"] = True
 
-            # Internal Gateway Health Port on localhost (avoids conflicting with Render PORT)
+            # Internal Gateway Health Port on localhost
             gw = config.setdefault("gateway", {})
             gw["host"] = "127.0.0.1"
             gw["port"] = 18790
 
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=2)
-            print(f"✓ Configured WebUI & Gateway to listen on 0.0.0.0:{port}")
+            print(f"✓ Configured WebUI & Gateway to listen on 0.0.0.0:{port} (Secret: {webui_secret})")
         except Exception as e:
             print(f"[!] Warning updating config: {e}")
 
