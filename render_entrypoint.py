@@ -82,6 +82,50 @@ def restore_installed_apps():
     except Exception as e:
         print(f"[!] App auto-restore check notice: {e}")
 
+def install_system_tools():
+    """Install standalone portable Linux binaries for gh and tmux so Skills are 100% Ready."""
+    bin_dir = Path.home() / ".local" / "bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    os.environ["PATH"] = f"{bin_dir}:{os.environ.get('PATH', '')}"
+
+    # 1. Install GitHub CLI (gh)
+    gh_bin = bin_dir / "gh"
+    if not gh_bin.exists():
+        try:
+            print("📦 Installing standalone GitHub CLI (gh)...")
+            import urllib.request, tarfile, io
+            url = "https://github.com/cli/cli/releases/download/v2.67.0/gh_2.67.0_linux_amd64.tar.gz"
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                with tarfile.open(fileobj=io.BytesIO(resp.read()), mode="r:gz") as tar:
+                    for member in tar.getmembers():
+                        if member.name.endswith("/bin/gh"):
+                            f = tar.extractfile(member)
+                            if f:
+                                with open(gh_bin, "wb") as out:
+                                    out.write(f.read())
+                                gh_bin.chmod(0o755)
+                                print("✓ GitHub CLI (gh) ready!")
+                                break
+        except Exception as e:
+            print(f"[!] Warning installing gh: {e}")
+
+    # 2. Install tmux
+    tmux_bin = bin_dir / "tmux"
+    if not tmux_bin.exists():
+        try:
+            print("📦 Installing standalone tmux binary...")
+            import urllib.request
+            url = "https://github.com/pythops/tmux-linux-binary/releases/download/v3.5a/tmux-linux-x86_64"
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                with open(tmux_bin, "wb") as out:
+                    out.write(resp.read())
+                tmux_bin.chmod(0o755)
+                print("✓ tmux binary ready!")
+        except Exception as e:
+            print(f"[!] Warning installing tmux: {e}")
+
 def push_memory(reason="Auto-save"):
     """Commit & push all modified memory/workspace/sessions files to the private repo."""
     if not GH_TOKEN:
@@ -141,6 +185,9 @@ def main():
 
     # 1. Restore private memory from GitHub before boot
     setup_private_memory()
+
+    # 1.1 Install standalone gh & tmux binaries
+    install_system_tools()
 
     # 2. Run onboard --refresh to populate missing templates
     subprocess.run(["nanobot", "onboard", "--refresh"], check=False)
