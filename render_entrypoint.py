@@ -205,24 +205,70 @@ def patch_nanobot_head_health():
         print(f"[!] Warning patching HEAD health support: {e}")
 
 def patch_nanobot_commands():
-    """Make /new accept arguments (e.g. /new hii) and add /reset and /clear aliases."""
+    """Make /new, /reset, /clear instant priority commands, prevent self-cancellation, and reply immediately."""
     try:
+        # 1. Patch CommandRouter so /new, /reset, /clear (with or without arguments) are matched as priority
+        import nanobot.command.router as router_mod
+        router_file = router_mod.__file__
+        with open(router_file, "r", encoding="utf-8") as f:
+            r_content = f.read()
+
+        target_prio = "def is_priority(self, text: str) -> bool:\n        return normalize_command_text(text).lower() in self._priority"
+        repl_prio = """def is_priority(self, text: str) -> bool:
+        cmd = normalize_command_text(text).split(maxsplit=1)[0].lower()
+        return cmd in self._priority"""
+
+        target_disp = "        ctx.raw = normalize_command_text(ctx.raw)\n        handler = self._priority.get(ctx.raw.lower())"
+        repl_disp = """        ctx.raw = normalize_command_text(ctx.raw)
+        cmd = ctx.raw.split(maxsplit=1)[0].lower()
+        handler = self._priority.get(cmd)"""
+
+        if target_prio in r_content:
+            r_content = r_content.replace(target_prio, repl_prio, 1)
+        if target_disp in r_content:
+            r_content = r_content.replace(target_disp, repl_disp, 1)
+
+        with open(router_file, "w", encoding="utf-8") as f:
+            f.write(r_content)
+
+        # 2. Patch builtin.py: Register /new, /reset, /clear as priority & customize friendly response
         import nanobot.command.builtin as cmd_builtin
-        file_path = cmd_builtin.__file__
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        target = '    router.exact("/new", cmd_new)'
-        replacement = """    router.exact("/new", cmd_new)
-    router.prefix("/new ", cmd_new)
-    router.exact("/reset", cmd_new)
-    router.prefix("/reset ", cmd_new)
-    router.exact("/clear", cmd_new)
-    router.prefix("/clear ", cmd_new)"""
-        if target in content and 'router.prefix("/new "' not in content:
-            content = content.replace(target, replacement, 1)
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(content)
-            print("✓ Patched Nanobot commands on disk: /new, /reset, /clear with argument support.")
+        cmd_file = cmd_builtin.__file__
+        with open(cmd_file, "r", encoding="utf-8") as f:
+            b_content = f.read()
+
+        target_msg = 'content="New session started."'
+        repl_msg = 'content="✨ Naya session start ho gaya hai! Purani chat clear ho gayi hai. Ab aap jo chahein pooch sakte hain!"'
+        if target_msg in b_content:
+            b_content = b_content.replace(target_msg, repl_msg, 1)
+
+        target_reg = '    router.exact("/new", cmd_new)'
+        repl_reg = """    router.priority("/new", cmd_new)
+    router.priority("/reset", cmd_new)
+    router.priority("/clear", cmd_new)
+    router.exact("/new", cmd_new)"""
+        if target_reg in b_content:
+            b_content = b_content.replace(target_reg, repl_reg, 1)
+
+        with open(cmd_file, "w", encoding="utf-8") as f:
+            f.write(b_content)
+
+        # 3. Patch loop.py so _cancel_active_tasks excludes current task (prevents self-cancellation)
+        import nanobot.agent.loop as loop_mod
+        loop_file = loop_mod.__file__
+        with open(loop_file, "r", encoding="utf-8") as f:
+            l_content = f.read()
+
+        target_cancel = "tasks = tuple(self._active_tasks.pop(key, set()))"
+        repl_cancel = """current_t = asyncio.current_task()
+        tasks = tuple(t for t in self._active_tasks.pop(key, set()) if t is not current_t)"""
+        if target_cancel in l_content:
+            l_content = l_content.replace(target_cancel, repl_cancel, 1)
+
+        with open(loop_file, "w", encoding="utf-8") as f:
+            f.write(l_content)
+
+        print("✓ Patched Nanobot commands on disk: /new, /reset, /clear are now instant priority commands.")
     except Exception as e:
         print(f"[!] Warning patching commands: {e}")
 
