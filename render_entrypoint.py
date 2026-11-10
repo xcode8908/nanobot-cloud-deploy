@@ -268,7 +268,30 @@ def patch_nanobot_commands():
         with open(loop_file, "w", encoding="utf-8") as f:
             f.write(l_content)
 
-        print("✓ Patched Nanobot commands on disk: /new, /reset, /clear are now instant priority commands.")
+        # 4. Patch base.py: Strict privacy - robust ID matching & explicit Access Denied message
+        import nanobot.channels.base as ch_base
+        base_file = ch_base.__file__
+        with open(base_file, "r", encoding="utf-8") as f:
+            c_content = f.read()
+
+        target_match = "# allowFrom entries are opaque tokens — must match exactly.\n        if str(sender_id) in allow_list:\n            return True"
+        repl_match = """# allowFrom entries: check exact match or split token (id|username)
+        tokens = set(str(sender_id).split("|")) | {str(sender_id)}
+        if any(t in allow_list for t in tokens):
+            return True"""
+
+        target_dm = "content=format_pairing_reply(code),"
+        repl_dm = 'content="⛔ Access Denied: Yeh bot private hai. Sirf owner (@Infinity_0wner) hi ise access kar sakta hai.",'
+
+        if target_match in c_content:
+            c_content = c_content.replace(target_match, repl_match, 1)
+        if target_dm in c_content:
+            c_content = c_content.replace(target_dm, repl_dm, 1)
+
+        with open(base_file, "w", encoding="utf-8") as f:
+            f.write(c_content)
+
+        print("✓ Patched Nanobot security on disk: Private Admin Mode & /new priority active.")
     except Exception as e:
         print(f"[!] Warning patching commands: {e}")
 
@@ -358,8 +381,16 @@ def main():
                 tg["enabled"] = True
                 tg["token"] = tg_token
                 tg["mode"] = "polling"
-                tg["allowFrom"] = ["*"]
-                print("✓ Enabled Telegram Channel (polling mode)")
+                # Strict Private Admin Whitelist
+                allowed_env = os.getenv("ALLOWED_TELEGRAM_USERS", "").strip()
+                if allowed_env:
+                    tg["allowFrom"] = [x.strip() for x in allowed_env.split(",") if x.strip()]
+                else:
+                    tg["allowFrom"] = [
+                        "7198790563", "Infinity_0wner", "7198790563|Infinity_0wner",
+                        "6161463701", "SILENTXOP", "6161463701|SILENTXOP"
+                    ]
+                print(f"🔒 Locked Telegram Channel (Private Admin Mode: {tg['allowFrom']})")
 
             # Configure WebUI & WebSocket Server to bind to Render public PORT
             ws = config.setdefault("channels", {}).setdefault("websocket", {})
