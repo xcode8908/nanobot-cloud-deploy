@@ -1,4 +1,8 @@
 import os
+# Memory management for 512MB RAM environment (prevents glibc fragmentation & OOM)
+os.environ["MALLOC_ARENA_MAX"] = "2"
+os.environ["PYTHONMALLOC"] = "malloc"
+import gc
 import subprocess
 import json
 import sys
@@ -163,6 +167,7 @@ def push_memory(reason="Auto-save"):
             subprocess.run(["git", "commit", "-m", f"{reason} [{timestamp}]"], cwd=WORKSPACE, check=True, capture_output=True)
             subprocess.run(["git", "push", "origin", "main"], cwd=WORKSPACE, check=True, capture_output=True)
             print(f"✓ [{timestamp}] Complete workspace & chat sessions auto-saved to GitHub (0ms user lag).")
+        gc.collect()
     except Exception as e:
         print(f"[!] Auto-save error: {e}")
 
@@ -260,14 +265,18 @@ def main():
                 print(f"✓ Configured Default Model from ENV: {default_provider} / {default_model}")
             elif agent_defaults.get("model_preset") or agent_defaults.get("modelPreset"):
                 print(f"✓ Preserved Active Preset & Fallback Chain: {agent_defaults.get('model_preset') or agent_defaults.get('modelPreset')}")
+            elif custom_key:
+                agent_defaults["provider"] = "custom"
+                agent_defaults["model"] = "deepseek-v4.1-flash:free"
+                print("✓ Activated TokenHarbor High-Speed Model (deepseek-v4.1-flash:free)")
+            elif gemini_key:
+                agent_defaults["provider"] = "gemini"
+                agent_defaults["model"] = "gemini-3-flash-preview"
+                print("✓ Configured Gemini API Key & Default Model (gemini-3-flash-preview)")
             elif openrouter_key:
                 agent_defaults["provider"] = "openrouter"
                 agent_defaults["model"] = "nvidia/nemotron-3-ultra-550b-a55b:free"
                 print("✓ Activated High-Power Frontier Model (nvidia/nemotron-3-ultra-550b-a55b:free)")
-            elif gemini_key and not agent_defaults.get("model"):
-                agent_defaults["provider"] = "gemini"
-                agent_defaults["model"] = "gemini-3-flash-preview"
-                print("✓ Configured Gemini API Key & Default Model (gemini-3-flash-preview)")
             else:
                 print(f"✓ Preserved User Custom Model: {agent_defaults.get('provider')} / {agent_defaults.get('model')}")
 
