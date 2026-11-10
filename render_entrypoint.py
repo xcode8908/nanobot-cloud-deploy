@@ -204,6 +204,28 @@ def patch_nanobot_head_health():
     except Exception as e:
         print(f"[!] Warning patching HEAD health support: {e}")
 
+def patch_nanobot_commands():
+    """Make /new accept arguments (e.g. /new hii) and add /reset and /clear aliases."""
+    try:
+        import nanobot.command.builtin as cmd_builtin
+        file_path = cmd_builtin.__file__
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        target = '    router.exact("/new", cmd_new)'
+        replacement = """    router.exact("/new", cmd_new)
+    router.prefix("/new ", cmd_new)
+    router.exact("/reset", cmd_new)
+    router.prefix("/reset ", cmd_new)
+    router.exact("/clear", cmd_new)
+    router.prefix("/clear ", cmd_new)"""
+        if target in content and 'router.prefix("/new "' not in content:
+            content = content.replace(target, replacement, 1)
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            print("✓ Patched Nanobot commands on disk: /new, /reset, /clear with argument support.")
+    except Exception as e:
+        print(f"[!] Warning patching commands: {e}")
+
 def main():
     print("=" * 60)
     print(" 🐈 Initializing Official HKUDS Nanobot on Render Cloud...")
@@ -223,6 +245,9 @@ def main():
 
     # 2.2 Patch Nanobot to support HTTP HEAD and /health for UptimeRobot
     patch_nanobot_head_health()
+
+    # 2.3 Patch Nanobot to support /new with arguments, /reset, and /clear
+    patch_nanobot_commands()
 
     # 3. Read Render assigned PORT & secrets
     port = int(os.getenv("PORT", "10000"))
