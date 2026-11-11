@@ -446,7 +446,7 @@ def main():
 
             # Set Custom / FreeLLMAPI / TokenHarbor Provider
             custom_key = os.getenv("CUSTOM_API_KEY", "").strip() or os.getenv("FREELLM_API_KEY", "").strip() or os.getenv("TOKENHARBOR_API_KEY", "").strip()
-            custom_base = os.getenv("CUSTOM_API_BASE", "").strip() or "https://freellmapi-dab8.onrender.com/v1"
+            custom_base = os.getenv("CUSTOM_API_BASE", "").strip() or "https://freellm.silentxop.workers.dev/v1"
             if custom_key:
                 cust = config.setdefault("providers", {}).setdefault("custom", {})
                 cust["apiKey"] = custom_key
