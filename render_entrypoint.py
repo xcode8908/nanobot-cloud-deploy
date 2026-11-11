@@ -445,8 +445,8 @@ def main():
                 print("✓ Configured OpenRouter API Key")
 
             # Set Custom / FreeLLMAPI / TokenHarbor Provider
-            custom_key = os.getenv("CUSTOM_API_KEY", "").strip() or os.getenv("FREELLM_API_KEY", "").strip() or os.getenv("TOKENHARBOR_API_KEY", "").strip()
-            custom_base = os.getenv("CUSTOM_API_BASE", "").strip() or "https://freellm.silentxop.workers.dev/v1"
+            custom_key = os.getenv("CUSTOM_API_KEY", "").strip() or os.getenv("FREELLM_API_KEY", "").strip() or "sk-cp-9b5527df917c6e6463295c54976b382c027519fab2d12768"
+            custom_base = os.getenv("CUSTOM_API_BASE", "").strip() or "https://freellmapi-dab8.onrender.com/v1"
             if custom_key:
                 cust = config.setdefault("providers", {}).setdefault("custom", {})
                 cust["apiKey"] = custom_key
@@ -513,8 +513,8 @@ def main():
             }
 
             default_provider = os.getenv("DEFAULT_PROVIDER", "custom").strip() or "custom"
-            default_model = os.getenv("DEFAULT_MODEL", "gemini-3.5-flash-lite").strip() or "gemini-3.5-flash-lite"
-            default_preset = os.getenv("DEFAULT_PRESET", "freellmapi-gemini").strip() or "freellmapi-gemini"
+            default_model = os.getenv("DEFAULT_MODEL", "auto").strip() or "auto"
+            default_preset = os.getenv("DEFAULT_PRESET", "freellmapi-auto").strip() or "freellmapi-auto"
 
             agent_defaults = config.setdefault("agents", {}).setdefault("defaults", {})
             agent_defaults["provider"] = default_provider
