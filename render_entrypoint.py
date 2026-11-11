@@ -393,10 +393,16 @@ def main():
                 config.setdefault("providers", {}).setdefault("gemini", {})["apiKey"] = gemini_key
                 print("✓ Configured Gemini API Key")
 
+            # Set Groq Provider with active key
+            groq_key = os.getenv("GROQ_API_KEY", "").strip()
+            if groq_key:
+                config.setdefault("providers", {}).setdefault("groq", {})["apiKey"] = groq_key
+                print("✓ Configured Groq High-Speed API Key")
+
             # Set OpenRouter Provider if provided
             openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
-            default_model = os.getenv("DEFAULT_MODEL", "").strip()
-            default_provider = os.getenv("DEFAULT_PROVIDER", "").strip()
+            default_model = os.getenv("DEFAULT_MODEL", "").strip() or "gemini-3.8-flash"
+            default_provider = os.getenv("DEFAULT_PROVIDER", "").strip() or "gemini"
 
             if openrouter_key:
                 config.setdefault("providers", {}).setdefault("openrouter", {})["apiKey"] = openrouter_key
@@ -411,27 +417,47 @@ def main():
                 cust["apiBase"] = custom_base
                 print(f"✓ Configured Custom Provider ({custom_base})")
 
+            # Setup High-Power Resilient Model Presets
+            presets = config.setdefault("modelPresets", {})
+            presets["gemini-flash"] = {
+                "model": "gemini-3.8-flash",
+                "provider": "gemini",
+                "maxTokens": 8192,
+                "contextWindowTokens": 1000000,
+                "temperature": 0.1,
+                "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
+            }
+            presets["groq-backup"] = {
+                "model": "openai/gpt-oss-120b",
+                "provider": "groq",
+                "maxTokens": 8192,
+                "contextWindowTokens": 128000,
+                "temperature": 0.1,
+                "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
+            }
+            presets["groq-qwen"] = {
+                "model": "qwen/qwen3.8-27b",
+                "provider": "groq",
+                "maxTokens": 8192,
+                "contextWindowTokens": 128000,
+                "temperature": 0.1,
+                "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
+            }
+            presets["gemini-secondary"] = {
+                "model": "gemini-3.5-flash",
+                "provider": "gemini",
+                "maxTokens": 8192,
+                "contextWindowTokens": 1000000,
+                "temperature": 0.1,
+                "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
+            }
+
             agent_defaults = config.setdefault("agents", {}).setdefault("defaults", {})
-            if default_provider and default_model:
-                agent_defaults["provider"] = default_provider
-                agent_defaults["model"] = default_model
-                print(f"✓ Configured Default Model from ENV: {default_provider} / {default_model}")
-            elif agent_defaults.get("model_preset") or agent_defaults.get("modelPreset"):
-                print(f"✓ Preserved Active Preset & Fallback Chain: {agent_defaults.get('model_preset') or agent_defaults.get('modelPreset')}")
-            elif custom_key:
-                agent_defaults["provider"] = "custom"
-                agent_defaults["model"] = "deepseek-v4.1-flash:free"
-                print("✓ Activated TokenHarbor High-Speed Model (deepseek-v4.1-flash:free)")
-            elif gemini_key:
-                agent_defaults["provider"] = "gemini"
-                agent_defaults["model"] = "gemini-3-flash-preview"
-                print("✓ Configured Gemini API Key & Default Model (gemini-3-flash-preview)")
-            elif openrouter_key:
-                agent_defaults["provider"] = "openrouter"
-                agent_defaults["model"] = "nvidia/nemotron-3-ultra-550b-a55b:free"
-                print("✓ Activated High-Power Frontier Model (nvidia/nemotron-3-ultra-550b-a55b:free)")
-            else:
-                print(f"✓ Preserved User Custom Model: {agent_defaults.get('provider')} / {agent_defaults.get('model')}")
+            agent_defaults["provider"] = default_provider
+            agent_defaults["model"] = default_model
+            agent_defaults["modelPreset"] = "gemini-flash"
+            agent_defaults["fallbackModels"] = ["groq-backup", "gemini-secondary", "groq-qwen"]
+            print(f"✓ Activated Primary Model: {default_provider} / {default_model} with Groq 120B & Gemini 3.5 Fallbacks")
 
             # Set Telegram Bot Channel if provided
             tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
