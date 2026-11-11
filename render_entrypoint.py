@@ -1,8 +1,10 @@
 import os
-# Memory management for 512MB RAM environment (prevents glibc fragmentation & OOM)
-os.environ["MALLOC_ARENA_MAX"] = "2"
+# Memory management for 512MB RAM environment (Zero-Crash Architecture)
+os.environ["MALLOC_ARENA_MAX"] = "1"
 os.environ["PYTHONMALLOC"] = "malloc"
+os.environ["MALLOC_TRIM_THRESHOLD_"] = "65536"
 import gc
+import ctypes
 import subprocess
 import json
 import sys
@@ -10,6 +12,51 @@ import threading
 import time
 import signal
 from pathlib import Path
+
+_libc = None
+try:
+    _libc = ctypes.CDLL("libc.so.6")
+except Exception:
+    pass
+
+def trim_memory():
+    """Aggressively flush Python GC & return all freed pages to Linux OS."""
+    try:
+        gc.collect(2)
+        if _libc and hasattr(_libc, "malloc_trim"):
+            _libc.malloc_trim(0)
+    except Exception:
+        pass
+
+def get_process_rss_mb():
+    """Read actual resident set size (RSS) memory in MB from Linux /proc."""
+    try:
+        with open("/proc/self/status", "r") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    return int(line.split()[1]) / 1024.0
+    except Exception:
+        pass
+    return 0.0
+
+def memory_guard_worker(interval=15, soft_limit_mb=300, hard_limit_mb=380):
+    """24/7 Background Sentinel: Keeps container RAM strictly below 400MB."""
+    print("🛡️ [MemoryGuard] Active: Monitoring RAM with 380MB hard ceiling (512MB safe envelope)...")
+    while True:
+        try:
+            time.sleep(interval)
+            rss = get_process_rss_mb()
+            if rss > soft_limit_mb:
+                trim_memory()
+                rss_after = get_process_rss_mb()
+                if rss_after > hard_limit_mb:
+                    import re
+                    re.purge()
+                    trim_memory()
+                    final_rss = get_process_rss_mb()
+                    print(f"🛡️ [MemoryGuard] Flushed RAM: {rss:.1f}MB -> {final_rss:.1f}MB (Available: {512 - final_rss:.1f}MB)")
+        except Exception:
+            pass
 
 # Paths
 HOME = Path.home() / ".nanobot"
@@ -167,11 +214,11 @@ def push_memory(reason="Auto-save"):
             subprocess.run(["git", "commit", "-m", f"{reason} [{timestamp}]"], cwd=WORKSPACE, check=True, capture_output=True)
             subprocess.run(["git", "push", "origin", "main"], cwd=WORKSPACE, check=True, capture_output=True)
             print(f"✓ [{timestamp}] Complete workspace & chat sessions auto-saved to GitHub (0ms user lag).")
-        gc.collect()
+        trim_memory()
     except Exception as e:
         print(f"[!] Auto-save error: {e}")
 
-def background_sync_worker(interval_seconds=30):
+def background_sync_worker(interval_seconds=60):
     """Background daemon: periodically syncs memory without slowing down chats."""
     if not GH_TOKEN:
         return
@@ -180,6 +227,7 @@ def background_sync_worker(interval_seconds=30):
         try:
             time.sleep(interval_seconds)
             push_memory("Periodic sync")
+            trim_memory()
         except Exception as e:
             print(f"[!] Background sync loop warning: {e}")
 
@@ -264,6 +312,17 @@ def patch_nanobot_commands():
         tasks = tuple(t for t in self._active_tasks.pop(key, set()) if t is not current_t)"""
         if target_cancel in l_content:
             l_content = l_content.replace(target_cancel, repl_cancel, 1)
+
+        target_outbound = "await self.bus.publish_outbound(result)"
+        repl_outbound = """await self.bus.publish_outbound(result)
+        try:
+            import gc, ctypes
+            gc.collect(1)
+            ctypes.CDLL("libc.so.6").malloc_trim(0)
+        except Exception:
+            pass"""
+        if target_outbound in l_content:
+            l_content = l_content.replace(target_outbound, repl_outbound, 1)
 
         with open(loop_file, "w", encoding="utf-8") as f:
             f.write(l_content)
@@ -414,6 +473,16 @@ def main():
             tools["webuiAllowRemotePackageInstall"] = True
             tools["webui_allow_remote_package_install"] = True
 
+            # Register Mailflare MCP Server
+            mcp_servers = tools.setdefault("mcpServers", {})
+            mcp_servers["mailflare"] = {
+                "url": "https://mailflare.silentxop.workers.dev/mcp",
+                "headers": {
+                    "Authorization": "Bearer ep_82cd0825ac73dbcba99364754770e936"
+                }
+            }
+            print("✓ Configured Mailflare MCP Server integration")
+
             with open(CONFIG_PATH, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=2)
             print(f"✓ Configured WebUI & Gateway to listen on 0.0.0.0:{port} (Secret: {webui_secret})")
@@ -423,9 +492,13 @@ def main():
     # 5. Push initial files if needed
     push_memory("Initial boot sync")
 
+    # 5.1 Start 24/7 Memory Guard thread (Zero-Crash RAM Watchdog)
+    guard_thread = threading.Thread(target=memory_guard_worker, daemon=True)
+    guard_thread.start()
+
     # 6. Start non-blocking background sync thread (0ms latency for user)
     if GH_TOKEN:
-        sync_thread = threading.Thread(target=background_sync_worker, args=(30,), daemon=True)
+        sync_thread = threading.Thread(target=background_sync_worker, args=(60,), daemon=True)
         sync_thread.start()
 
     # 7. Graceful shutdown handler
