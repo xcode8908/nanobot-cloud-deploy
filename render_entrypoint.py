@@ -221,15 +221,15 @@ def push_memory(reason="Auto-save"):
     except Exception as e:
         print(f"[!] Auto-save error: {e}")
 
-def background_sync_worker(interval_seconds=60):
-    """Background daemon: periodically syncs memory without slowing down chats."""
+def background_sync_worker(interval_seconds=900):
+    """Background daemon: periodically syncs memory every 15 mins without commit bloat or slowing down chats."""
     if not GH_TOKEN:
         return
-    print(f"🛡️ Private Auto-Sync Active: Backing up memory every {interval_seconds}s in background...")
+    print(f"🛡️ Private Smart-Sync Active: Backing up memory every {interval_seconds // 60} minutes in background...")
     while True:
         try:
             time.sleep(interval_seconds)
-            push_memory("Periodic sync")
+            push_memory("Periodic sync (15m)")
             trim_memory()
         except Exception as e:
             print(f"[!] Background sync loop warning: {e}")
@@ -591,9 +591,9 @@ def main():
     guard_thread = threading.Thread(target=memory_guard_worker, daemon=True)
     guard_thread.start()
 
-    # 6. Start non-blocking background sync thread (0ms latency for user)
+    # 6. Start non-blocking background sync thread (0ms latency, 15m clean interval)
     if GH_TOKEN:
-        sync_thread = threading.Thread(target=background_sync_worker, args=(60,), daemon=True)
+        sync_thread = threading.Thread(target=background_sync_worker, args=(900,), daemon=True)
         sync_thread.start()
 
     # 7. Graceful shutdown handler
