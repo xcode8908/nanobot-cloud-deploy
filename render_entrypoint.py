@@ -453,17 +453,41 @@ def main():
                 cust["apiBase"] = custom_base
                 print(f"✓ Configured FreeLLMAPI / Custom Provider ({custom_base})")
 
-            # Setup High-Power Resilient Model Presets
+            # Setup High-Power Resilient Model Presets (1M Context, FreeLLMAPI Gemini Engine)
             presets = config.setdefault("modelPresets", {})
-            presets["freellmapi-auto"] = {
-                "model": "auto",
+            presets["freellmapi-gemini"] = {
+                "model": "gemini-3.5-flash-lite",
                 "provider": "custom",
                 "maxTokens": 8192,
                 "contextWindowTokens": 1000000,
                 "temperature": 0.1,
                 "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
             }
-            presets["freellmapi-gemini"] = {
+            presets["freellmapi-flash-lite"] = {
+                "model": "gemini-flash-lite",
+                "provider": "custom",
+                "maxTokens": 8192,
+                "contextWindowTokens": 1000000,
+                "temperature": 0.1,
+                "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
+            }
+            presets["freellmapi-flash"] = {
+                "model": "gemini-3.5-flash",
+                "provider": "custom",
+                "maxTokens": 8192,
+                "contextWindowTokens": 1000000,
+                "temperature": 0.1,
+                "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
+            }
+            presets["freellmapi-haiku"] = {
+                "model": "claude-haiku-4-5",
+                "provider": "custom",
+                "maxTokens": 8192,
+                "contextWindowTokens": 200000,
+                "temperature": 0.1,
+                "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
+            }
+            presets["freellmapi-auto"] = {
                 "model": "gemini-3.5-flash-lite",
                 "provider": "custom",
                 "maxTokens": 8192,
@@ -489,14 +513,15 @@ def main():
             }
 
             default_provider = os.getenv("DEFAULT_PROVIDER", "custom").strip() or "custom"
-            default_model = os.getenv("DEFAULT_MODEL", "auto").strip() or "auto"
-            default_preset = os.getenv("DEFAULT_PRESET", "").strip() or ("freellmapi-auto" if default_provider == "custom" else "gemini-flash")
+            default_model = os.getenv("DEFAULT_MODEL", "gemini-3.5-flash-lite").strip() or "gemini-3.5-flash-lite"
+            default_preset = os.getenv("DEFAULT_PRESET", "freellmapi-gemini").strip() or "freellmapi-gemini"
 
             agent_defaults = config.setdefault("agents", {}).setdefault("defaults", {})
             agent_defaults["provider"] = default_provider
             agent_defaults["model"] = default_model
             agent_defaults["modelPreset"] = default_preset
-            agent_defaults["fallbackModels"] = ["freellmapi-gemini", "groq-backup", "gemini-flash"]
+            agent_defaults["fallbackModels"] = ["freellmapi-flash-lite", "freellmapi-flash"]
+            agent_defaults["contextWindowTokens"] = 1000000
             # Antigravity Context Limits: prevent prompt bloat & memory spikes
             agent_defaults["maxToolResultChars"] = 3000
             agent_defaults["idleCompactAfterMinutes"] = 5
