@@ -440,27 +440,32 @@ def main():
 
             # Set OpenRouter Provider if provided
             openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
-            default_model = os.getenv("DEFAULT_MODEL", "").strip() or "gemini-3.8-flash"
-            default_provider = os.getenv("DEFAULT_PROVIDER", "").strip() or "gemini"
-
             if openrouter_key:
                 config.setdefault("providers", {}).setdefault("openrouter", {})["apiKey"] = openrouter_key
                 print("✓ Configured OpenRouter API Key")
 
-            # Set Custom / TokenHarbor Provider if provided
-            custom_key = os.getenv("CUSTOM_API_KEY", "").strip() or os.getenv("TOKENHARBOR_API_KEY", "").strip()
-            custom_base = os.getenv("CUSTOM_API_BASE", "").strip() or "https://tokenharbor.ai/v1"
+            # Set Custom / FreeLLMAPI / TokenHarbor Provider
+            custom_key = os.getenv("CUSTOM_API_KEY", "").strip() or os.getenv("FREELLM_API_KEY", "").strip() or os.getenv("TOKENHARBOR_API_KEY", "").strip()
+            custom_base = os.getenv("CUSTOM_API_BASE", "").strip() or "https://freellmapi-dab8.onrender.com/v1"
             if custom_key:
                 cust = config.setdefault("providers", {}).setdefault("custom", {})
                 cust["apiKey"] = custom_key
                 cust["apiBase"] = custom_base
-                print(f"✓ Configured Custom Provider ({custom_base})")
+                print(f"✓ Configured FreeLLMAPI / Custom Provider ({custom_base})")
 
             # Setup High-Power Resilient Model Presets
             presets = config.setdefault("modelPresets", {})
-            presets["gemini-flash"] = {
-                "model": "gemini-3.8-flash",
-                "provider": "gemini",
+            presets["freellmapi-auto"] = {
+                "model": "auto",
+                "provider": "custom",
+                "maxTokens": 8192,
+                "contextWindowTokens": 1000000,
+                "temperature": 0.1,
+                "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
+            }
+            presets["freellmapi-gemini"] = {
+                "model": "gemini-3.5-flash-lite",
+                "provider": "custom",
                 "maxTokens": 8192,
                 "contextWindowTokens": 1000000,
                 "temperature": 0.1,
@@ -474,15 +479,7 @@ def main():
                 "temperature": 0.1,
                 "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
             }
-            presets["groq-qwen"] = {
-                "model": "qwen/qwen3.8-27b",
-                "provider": "groq",
-                "maxTokens": 8192,
-                "contextWindowTokens": 128000,
-                "temperature": 0.1,
-                "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
-            }
-            presets["gemini-secondary"] = {
+            presets["gemini-flash"] = {
                 "model": "gemini-3.5-flash",
                 "provider": "gemini",
                 "maxTokens": 8192,
@@ -491,16 +488,20 @@ def main():
                 "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
             }
 
+            default_provider = os.getenv("DEFAULT_PROVIDER", "custom").strip() or "custom"
+            default_model = os.getenv("DEFAULT_MODEL", "auto").strip() or "auto"
+            default_preset = os.getenv("DEFAULT_PRESET", "").strip() or ("freellmapi-auto" if default_provider == "custom" else "gemini-flash")
+
             agent_defaults = config.setdefault("agents", {}).setdefault("defaults", {})
             agent_defaults["provider"] = default_provider
             agent_defaults["model"] = default_model
-            agent_defaults["modelPreset"] = "gemini-flash"
-            agent_defaults["fallbackModels"] = ["groq-backup", "gemini-secondary", "groq-qwen"]
+            agent_defaults["modelPreset"] = default_preset
+            agent_defaults["fallbackModels"] = ["freellmapi-gemini", "groq-backup", "gemini-flash"]
             # Antigravity Context Limits: prevent prompt bloat & memory spikes
             agent_defaults["maxToolResultChars"] = 3000
             agent_defaults["idleCompactAfterMinutes"] = 5
             agent_defaults["idleCompactCheckIntervalSeconds"] = 30
-            print(f"✓ Activated Primary Model: {default_provider} / {default_model} with Groq 120B & Gemini 3.5 Fallbacks (Antigravity Context Guard Active)")
+            print(f"✓ Activated Primary Model: {default_provider} / {default_model} via preset {default_preset} with Fallbacks (FreeLLMAPI Active)")
 
             # Set Telegram Bot Channel if provided
             tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
