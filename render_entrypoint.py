@@ -3,6 +3,9 @@ import os
 os.environ["MALLOC_ARENA_MAX"] = "1"
 os.environ["PYTHONMALLOC"] = "malloc"
 os.environ["MALLOC_TRIM_THRESHOLD_"] = "65536"
+# Extended timeouts for deep reasoning & large code generation
+os.environ["NANOBOT_STREAM_IDLE_TIMEOUT_S"] = "180"
+os.environ["NANOBOT_OPENAI_COMPAT_TIMEOUT_S"] = "180"
 import gc
 import ctypes
 import subprocess
@@ -354,6 +357,39 @@ def patch_nanobot_commands():
     except Exception as e:
         print(f"[!] Warning patching commands: {e}")
 
+def patch_antigravity_sliding_window():
+    """Antigravity-Grade Sliding Window & Token Trimmer to eliminate 10-turn timeouts forever."""
+    try:
+        import nanobot.agent.loop as loop_mod
+        file_path = loop_mod.__file__
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        target = "    def _build_transcript_input(self, ctx: TurnContext) -> TranscriptInput:\n        assert ctx.session is not None\n        return TranscriptInput(\n            history=ctx.history,"
+        
+        replacement = """    def _build_transcript_input(self, ctx: TurnContext) -> TranscriptInput:
+        assert ctx.session is not None
+        # Antigravity Sliding Window Optimizer: keep only last 8 turns & trim huge tool outputs
+        h_slice = ctx.history[-8:] if ctx.history and len(ctx.history) > 8 else (ctx.history or [])
+        clean_history = []
+        for item in h_slice:
+            if isinstance(item, dict):
+                c = item.get("content")
+                if isinstance(c, str) and len(c) > 3000 and item.get("role") in ("tool", "system"):
+                    item = dict(item)
+                    item["content"] = c[:3000] + "\\n... [Old output trimmed to preserve token bandwidth]"
+            clean_history.append(item)
+        return TranscriptInput(
+            history=clean_history,"""
+
+        if target in content and "Antigravity Sliding Window Optimizer" not in content:
+            content = content.replace(target, replacement, 1)
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            print("✓ Injected Antigravity Sliding Window Optimizer (Max 8 turns & tool trimmer)")
+    except Exception as e:
+        print(f"[!] Warning patching sliding window: {e}")
+
 def main():
     print("=" * 60)
     print(" 🐈 Initializing Official HKUDS Nanobot on Render Cloud...")
@@ -376,6 +412,9 @@ def main():
 
     # 2.3 Patch Nanobot to support /new with arguments, /reset, and /clear
     patch_nanobot_commands()
+
+    # 2.4 Patch Nanobot with Antigravity Sliding Window (Max 8 turns & Tool Trimmer)
+    patch_antigravity_sliding_window()
 
     # 3. Read Render assigned PORT & secrets
     port = int(os.getenv("PORT", "10000"))
@@ -457,7 +496,11 @@ def main():
             agent_defaults["model"] = default_model
             agent_defaults["modelPreset"] = "gemini-flash"
             agent_defaults["fallbackModels"] = ["groq-backup", "gemini-secondary", "groq-qwen"]
-            print(f"✓ Activated Primary Model: {default_provider} / {default_model} with Groq 120B & Gemini 3.5 Fallbacks")
+            # Antigravity Context Limits: prevent prompt bloat & memory spikes
+            agent_defaults["maxToolResultChars"] = 3000
+            agent_defaults["idleCompactAfterMinutes"] = 5
+            agent_defaults["idleCompactCheckIntervalSeconds"] = 30
+            print(f"✓ Activated Primary Model: {default_provider} / {default_model} with Groq 120B & Gemini 3.5 Fallbacks (Antigravity Context Guard Active)")
 
             # Set Telegram Bot Channel if provided
             tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
