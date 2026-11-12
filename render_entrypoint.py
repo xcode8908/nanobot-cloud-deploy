@@ -390,6 +390,39 @@ def patch_antigravity_sliding_window():
     except Exception as e:
         print(f"[!] Warning patching sliding window: {e}")
 
+def patch_nanobot_retry_cap():
+    """Cap ridiculous LLM rate-limit delays (like 6712s or 289s) to max 5s so Nanobot never hangs."""
+    try:
+        import nanobot.providers.base as base_mod
+        file_path = base_mod.__file__
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        target = """            retry_after = self._extract_retry_after_from_response(response)
+            base_delay = delays[min(attempt - 1, len(delays) - 1)]
+            delay = (
+                retry_after + RETRY_AFTER_BUFFER
+                if retry_after else random.uniform(base_delay / 2, base_delay)
+            )"""
+
+        replacement = """            retry_after = self._extract_retry_after_from_response(response)
+            if retry_after and retry_after > 10:
+                retry_after = 5.0
+            base_delay = delays[min(attempt - 1, len(delays) - 1)]
+            delay = (
+                retry_after + RETRY_AFTER_BUFFER
+                if retry_after else random.uniform(base_delay / 2, base_delay)
+            )
+            delay = min(delay, 8.0)"""
+
+        if target in content and "retry_after = 5.0" not in content:
+            content = content.replace(target, replacement, 1)
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            print("✓ Injected Zero-Hang Retry Cap (Max 8s delay, no 6712s hangs)")
+    except Exception as e:
+        print(f"[!] Warning patching retry cap: {e}")
+
 def main():
     print("=" * 60)
     print(" 🐈 Initializing Official HKUDS Nanobot on Render Cloud...")
@@ -415,6 +448,9 @@ def main():
 
     # 2.4 Patch Nanobot with Antigravity Sliding Window (Max 8 turns & Tool Trimmer)
     patch_antigravity_sliding_window()
+
+    # 2.5 Patch Nanobot to cap rate limit retry delays to max 8s (no 6712s hangs)
+    patch_nanobot_retry_cap()
 
     # 3. Read Render assigned PORT & secrets
     port = int(os.getenv("PORT", "10000"))
@@ -456,7 +492,7 @@ def main():
             # Setup High-Power Resilient Model Presets (1M Context, FreeLLMAPI Gemini Engine)
             presets = config.setdefault("modelPresets", {})
             presets["freellmapi-gemini"] = {
-                "model": "gemini-3.5-flash-lite",
+                "model": "auto",
                 "provider": "custom",
                 "maxTokens": 8192,
                 "contextWindowTokens": 1000000,
@@ -464,7 +500,7 @@ def main():
                 "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
             }
             presets["freellmapi-flash-lite"] = {
-                "model": "gemini-flash-lite",
+                "model": "auto",
                 "provider": "custom",
                 "maxTokens": 8192,
                 "contextWindowTokens": 1000000,
@@ -472,7 +508,7 @@ def main():
                 "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
             }
             presets["freellmapi-flash"] = {
-                "model": "gemini-3.5-flash",
+                "model": "auto",
                 "provider": "custom",
                 "maxTokens": 8192,
                 "contextWindowTokens": 1000000,
@@ -488,7 +524,7 @@ def main():
                 "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
             }
             presets["freellmapi-auto"] = {
-                "model": "gemini-3.5-flash-lite",
+                "model": "auto",
                 "provider": "custom",
                 "maxTokens": 8192,
                 "contextWindowTokens": 1000000,
@@ -520,7 +556,7 @@ def main():
             agent_defaults["provider"] = default_provider
             agent_defaults["model"] = default_model
             agent_defaults["modelPreset"] = default_preset
-            agent_defaults["fallbackModels"] = ["freellmapi-flash-lite", "freellmapi-flash"]
+            agent_defaults["fallbackModels"] = ["freellmapi-gemini"]
             agent_defaults["contextWindowTokens"] = 1000000
             # Antigravity Context Limits: prevent prompt bloat & memory spikes
             agent_defaults["maxToolResultChars"] = 3000
@@ -553,6 +589,7 @@ def main():
             ws["port"] = port
             ws["allowFrom"] = ["*"]
             ws["allow_from"] = ["*"]
+            ws["token"] = webui_secret
             ws["tokenIssueSecret"] = webui_secret
             ws["token_issue_secret"] = webui_secret
             ws["websocketRequiresToken"] = True
