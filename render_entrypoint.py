@@ -482,11 +482,14 @@ def main():
 
             # Set Custom / FreeLLMAPI / TokenHarbor Provider
             custom_key = os.getenv("CUSTOM_API_KEY", "").strip() or os.getenv("FREELLM_API_KEY", "").strip() or "sk-cp-9b5527df917c6e6463295c54976b382c027519fab2d12768"
-            custom_base = os.getenv("CUSTOM_API_BASE", "").strip() or "https://freellmapi-dab8.onrender.com/v1"
+            custom_base = os.getenv("CUSTOM_API_BASE", "").strip() or "https://freellm.silentxop.workers.dev/v1"
             if custom_key:
                 cust = config.setdefault("providers", {}).setdefault("custom", {})
                 cust["apiKey"] = custom_key
                 cust["apiBase"] = custom_base
+                cust["extraHeaders"] = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                }
                 print(f"✓ Configured FreeLLMAPI / Custom Provider ({custom_base})")
 
             # Setup High-Power Resilient Model Presets (1M Context, FreeLLMAPI Gemini Engine)
