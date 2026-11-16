@@ -550,22 +550,38 @@ def main():
                 "temperature": 0.1,
                 "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
             }
+            presets["gemini-flash-lite"] = {
+                "model": "gemini-3.5-flash-lite",
+                "provider": "gemini",
+                "maxTokens": 8192,
+                "contextWindowTokens": 1000000,
+                "temperature": 0.1,
+                "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
+            }
+            presets["openrouter-free"] = {
+                "model": "liquid/lfm-3-1.7b:free",
+                "provider": "openrouter",
+                "maxTokens": 4096,
+                "contextWindowTokens": 32000,
+                "temperature": 0.1,
+                "extraHeaders": None, "extraQuery": None, "extraBody": None, "reasoningEffort": None, "api": None
+            }
 
-            default_provider = os.getenv("DEFAULT_PROVIDER", "custom").strip() or "custom"
-            default_model = os.getenv("DEFAULT_MODEL", "auto").strip() or "auto"
-            default_preset = os.getenv("DEFAULT_PRESET", "freellmapi-auto").strip() or "freellmapi-auto"
+            default_provider = os.getenv("DEFAULT_PROVIDER", "gemini").strip() or "gemini"
+            default_model = os.getenv("DEFAULT_MODEL", "gemini-3.5-flash").strip() or "gemini-3.5-flash"
+            default_preset = os.getenv("DEFAULT_PRESET", "gemini-flash").strip() or "gemini-flash"
 
             agent_defaults = config.setdefault("agents", {}).setdefault("defaults", {})
             agent_defaults["provider"] = default_provider
             agent_defaults["model"] = default_model
             agent_defaults["modelPreset"] = default_preset
-            agent_defaults["fallbackModels"] = ["freellmapi-gemini"]
+            agent_defaults["fallbackModels"] = ["gemini-flash-lite", "openrouter-free"]
             agent_defaults["contextWindowTokens"] = 1000000
             # Antigravity Context Limits: prevent prompt bloat & memory spikes
             agent_defaults["maxToolResultChars"] = 3000
             agent_defaults["idleCompactAfterMinutes"] = 5
             agent_defaults["idleCompactCheckIntervalSeconds"] = 30
-            print(f"✓ Activated Primary Model: {default_provider} / {default_model} via preset {default_preset} with Fallbacks (FreeLLMAPI Active)")
+            print(f"✓ Activated Primary Model: {default_provider} / {default_model} via preset {default_preset} with Fallbacks (Gemini Native Active)")
 
             # Set Telegram Bot Channel if provided
             tg_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
